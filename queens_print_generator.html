@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Queens 题纸生成器</title>
+<!-- jsPDF：用于「下载 PDF」。CDN 失败时下载按钮会被禁用 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<style>
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: #f3f4f6;
+    color: #111827;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .container {
+    max-width: 210mm;          /* 与 A4 页面同宽，panel 与 output 对齐 */
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* --- 控制面板 --- */
+  .panel {
+    margin-bottom: 16px;
+  }
+  .panel h1 {
+    margin: 0 0 14px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: #374151;
+  }
+  .controls label.full-row {
+    grid-column: 1 / -1;       /* 文件名前缀输入：占满整行，不挤压棋盘/页数 */
+  }
+  .controls select,
+  .controls input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    font-size: 16px;
+    color: #111827;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .controls select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%236b7280' d='M6 8 0 0h12z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .controls select:focus,
+  .controls input:focus {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+    border-color: #2563eb;
+  }
+
+    /* --- 按钮区：桌面 3 列横排，移动端纵向堆叠 --- */
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;   /* 三按钮横排：生成 | 下载 PDF | 打印 */
+    gap: 12px;
+  }
+  .actions button {
+    padding: 14px 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+    transition: background-color .15s ease, transform .05s ease, box-shadow .15s ease;
+  }
+  .actions button:active { transform: translateY(1px); }
+    .btn-primary   { background: #0ea5e9; }            /* 天蓝 - 生成 */
+  .btn-primary:hover { background: #0284c7; }
+  .btn-tertiary { background: #10b981; }             /* 翠绿 - 下载 PDF */
+  .btn-tertiary:hover { background: #059669; }
+    .btn-secondary { background: #ff7849; }            /* 珊瑚橙 - 打印 */
+  .btn-secondary:hover { background: #ea5a30; }
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-tertiary:disabled {
+    background: #c7c9d1;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* --- 输出 / 预览 --- */
+  #output {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .empty-hint {
+    padding: 32px 16px;
+    color: #6b7280;
+    text-align: center;
+    font-size: 14px;
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+  }
+
+  /* --- A4 页面 --- */
+  .page {
+    background: #fff;
+    width: 100%;
+    max-width: 210mm;
+    aspect-ratio: 210 / 297;
+    padding: 5.71%; /* ≈ 12mm / 210mm */
+    border-radius: 4px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, .08);
+    display: flex;
+    flex-direction: column;
+    container-type: inline-size;
+    color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    color: #4b5563;
+    margin-bottom: 2.5%;
+    font-size: 11pt;
+    /* 屏幕容器单位字号，打印环境会被 @media print 覆盖 */
+    font-size: 1.85cqw;
+  }
+
+  .boards-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, 1fr);
+    gap: 3.2cqw 4cqw; /* 行间距、列间距，约 6.7mm / 8.4mm */
+    align-items: center;
+    justify-items: center;
+  }
+
+  .board {
+    /* SVG 棋盘：充满 grid 单元格，preserveAspectRatio 内部自动按方形居中 */
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* --- 响应式：移动端微调 --- */
+  @media (max-width: 480px) {
+    .panel h1 { font-size: 17px; }
+    .controls,
+    .actions { gap: 10px; }
+    .controls select,
+    .controls input { font-size: 16px; padding: 11px 12px; }
+      .actions { grid-template-columns: 1fr; } /* 移动端纵向堆叠 */
+    .actions button { padding: 13px; font-size: 15px; }
+    .page { padding: 5.71%; }
+    .boards-grid { gap: 3cqw 3.6cqw; }
+  }
+
+  /* --- 打印 --- */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  @media print {
+    html, body {
+      background: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .container { padding: 0; max-width: none; }
+    .no-print { display: none !important; }
+
+    #output { gap: 0; }
+
+    .page {
+      width: 210mm;
+      height: 297mm;
+      max-width: none;
+      aspect-ratio: auto;
+      padding: 12mm;
+      margin: 0;
+      box-shadow: none;
+      border-radius: 0;
+      page-break-after: always;
+      break-after: page;
+    }
+    .page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+    .page-header {
+      font-size: 10.5pt;
+      margin-bottom: 6mm;
+    }
+    .boards-grid {
+      gap: 6mm 8mm;
+    }
+    /* board 在打印时不需要再处理边框/内距，SVG 内部已统一处理 */
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="panel no-print">
+      <h1>Queens 题纸生成器</h1>
+      <div class="controls">
+        <label>
+          <span>棋盘</span>
+          <select id="size" aria-label="棋盘大小">
+            <option value="5">5 × 5</option>
+            <option value="6" selected>6 × 6</option>
+            <option value="7">7 × 7</option>
+            <option value="8">8 × 8</option>
+            <option value="9">9 × 9</option>
+          </select>
+        </label>
+        <label>
+          <span>页数</span>
+          <input id="pages" type="number" inputmode="numeric"
+                 min="1" max="50" step="1" value="3" aria-label="页数">
+        </label>
+        <label class="full-row">
+          <span>文件名前缀（PDF 用，可选）</span>
+          <input id="prefix" type="text" placeholder="例如：1班" maxlength="40"
+                 autocomplete="off" aria-label="文件名前缀">
+        </label>
+      </div>
+      <div class="actions">
+        <button id="btn-generate" class="btn-primary"   type="button">生成题纸</button>
+        <button id="btn-download" class="btn-tertiary"  type="button">下载 PDF</button>
+        <button id="btn-print"    class="btn-secondary" type="button">打印</button>
+      </div>
+    </div>
+
+    <main id="output">
+      <div class="empty-hint">点击「生成题纸」开始</div>
+    </main>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- 颜色（最多 9 种，对应 5×5 ~ 9×9）----------
+  // 选色原则：
+  //   1. 色相在色环上均匀分布，相邻色不混淆
+  //   2. 饱和度足够高，CMYK 打印后仍保持清晰区分
+  //   3. 明度仍偏亮，方便用户在格子上写皇后/标记
+  var COLORS = [
+    '#f87171', // 红
+    '#fb923c', // 橙
+    '#facc15', // 黄
+    '#a3e635', // 黄绿
+    '#4ade80', // 绿
+    '#2dd4bf', // 蓝绿
+    '#60a5fa', // 蓝
+    '#c084fc', // 紫
+    '#f472b6'  // 粉
+  ];
+
+  // ---------- 工具 ----------
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+  function range(n) {
+    var a = new Array(n);
+    for (var i = 0; i < n; i++) a[i] = i;
+    return a;
+  }
+  // PDF 着色用：'#aabbcc' / '#abc' → {r,g,b}
+  function hexToRgb(hex) {
+    hex = String(hex).replace('#', '');
+    if (hex.length === 3) {
+      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    return {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16)
+    };
+  }
+
+  // ---------- 1. 生成皇后位置 ----------
+  // queens[r] = c，要求：
+  //   - 每行/列各 1 个
+  //   - 相邻行的列差 > 1（即任意两皇后不在 8 邻域内相邻）
+  function generateQueens(n) {
+    var queens = new Array(n).fill(-1);
+    function backtrack(row) {
+      if (row === n) return true;
+      var cols = shuffle(range(n));
+      for (var i = 0; i < cols.length; i++) {
+        var col = cols[i];
+        if (queens.indexOf(col) !== -1) continue;
+        if (row > 0 && Math.abs(queens[row - 1] - col) <= 1) continue;
+        queens[row] = col;
+        if (backtrack(row + 1)) return true;
+        queens[row] = -1;
+      }
+      return false;
+    }
+    return backtrack(0) ? queens.slice() : null;
+  }
+
+  // ---------- 2. 生成颜色区域（每个皇后所在格为种子，BFS 泛洪扩展）----------
+  function generateRegions(n, queens) {
+    var regions = [];
+    for (var r = 0; r < n; r++) regions.push(new Array(n).fill(-1));
+
+    // 用行号作为区域 id（0..n-1）
+    var frontiers = [];
+    for (var i = 0; i < n; i++) frontiers.push([]);
+
+    function addFrontier(rid, r, c) {
+      var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      for (var d = 0; d < 4; d++) {
+        var nr = r + dirs[d][0], nc = c + dirs[d][1];
+        if (nr < 0 || nr >= n || nc < 0 || nc >= n) continue;
+        if (regions[nr][nc] !== -1) continue;
+        frontiers[rid].push([nr, nc]);
+      }
+    }
+
+    for (var k = 0; k < n; k++) {
+      var qc = queens[k];
+      regions[k][qc] = k;
+      addFrontier(k, k, qc);
+    }
+
+    var remaining = n * n - n;
+    var safety = 100000;
+    while (remaining > 0 && safety-- > 0) {
+      var order = shuffle(range(n));
+      var extended = false;
+
+      for (var oi = 0; oi < order.length; oi++) {
+        var rid = order[oi];
+
+        // 清理已被占据的边界
+        var f = frontiers[rid];
+        var live = [];
+        for (var fi = 0; fi < f.length; fi++) {
+          if (regions[f[fi][0]][f[fi][1]] === -1) live.push(f[fi]);
+        }
+        frontiers[rid] = live;
+        if (live.length === 0) continue;
+
+        var idx = Math.floor(Math.random() * live.length);
+        var pick = live[idx];
+        live.splice(idx, 1);
+
+        regions[pick[0]][pick[1]] = rid;
+        addFrontier(rid, pick[0], pick[1]);
+        remaining--;
+        extended = true;
+        break; // 每轮每个区域最多多吃一个，整体均衡
+      }
+      if (!extended) break;
+    }
+
+    // 极少数情况下还有未填格（被孤立），就近合并到已分配的邻居
+    if (remaining > 0) {
+      for (var r2 = 0; r2 < n; r2++) {
+        for (var c2 = 0; c2 < n; c2++) {
+          if (regions[r2][c2] !== -1) continue;
+          var dirs2 = [[-1,0],[1,0],[0,-1],[0,1]];
+          for (var dd = 0; dd < 4; dd++) {
+            var nr2 = r2 + dirs2[dd][0], nc2 = c2 + dirs2[dd][1];
+            if (nr2 < 0 || nr2 >= n || nc2 < 0 || nc2 >= n) continue;
+            if (regions[nr2][nc2] !== -1) {
+              regions[r2][c2] = regions[nr2][nc2];
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return regions;
+  }
+
+  // ---------- 3. 求解器（用于唯一性校验）----------
+  // 找到不同解最多 limit 个就停止
+  function countSolutions(n, regions, limit) {
+    var count = 0;
+    var prevCol = -1;
+    var usedCols = new Array(n).fill(false);
+    var usedRegions = new Array(n).fill(false);
+    var stack = []; // 记录每行 col
+
+    function backtrack(row, prev) {
+      if (count >= limit) return;
+      if (row === n) { count++; return; }
+      for (var col = 0; col < n; col++) {
+        if (usedCols[col]) continue;
+        var rid = regions[row][col];
+        if (usedRegions[rid]) continue;
+        if (prev !== -1 && Math.abs(prev - col) <= 1) continue;
+        usedCols[col] = true;
+        usedRegions[rid] = true;
+        backtrack(row + 1, col);
+        usedCols[col] = false;
+        usedRegions[rid] = false;
+        if (count >= limit) return;
+      }
+    }
+    backtrack(0, -1);
+    return count;
+  }
+
+  // ---------- 4. 生成一个有唯一解的题目 ----------
+  function generatePuzzle(n) {
+    for (var attempt = 0; attempt < 400; attempt++) {
+      var queens = generateQueens(n);
+      if (!queens) continue;
+      // 同一皇后位置允许多次尝试不同区域分割
+      for (var ra = 0; ra < 6; ra++) {
+        var regions = generateRegions(n, queens);
+        // 校验每个区域恰好有 1 个皇后（理论上一定，但稳妥起见）
+        var ok = true;
+        var rqCount = new Array(n).fill(0);
+        for (var rr = 0; rr < n && ok; rr++) {
+          var rid = regions[rr][queens[rr]];
+          rqCount[rid]++;
+        }
+        for (var rc = 0; rc < n; rc++) if (rqCount[rc] !== 1) ok = false;
+        if (!ok) continue;
+
+        if (countSolutions(n, regions, 2) === 1) {
+          return regions;
+        }
+      }
+    }
+    return null;
+  }
+
+  // ---------- 5. 渲染 ----------
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function renderBoard(regions, n) {
+    // 用 SVG 渲染：所有线条来自同一条 path，stroke-width 严格一致，
+    // 配合 shape-rendering: crispEdges，打印无粗细抖动。
+    var outerStroke = 0.045;             // 外框线宽（viewBox 单位）
+    var innerStroke = outerStroke / 2;   // 内部网格线宽 = 1/2，减少视觉干扰
+    var pad = outerStroke;               // viewBox 外扩，避免外框 stroke 被裁
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'board');
+    svg.setAttribute('xmlns', SVG_NS);
+    svg.setAttribute('viewBox',
+      (-pad) + ' ' + (-pad) + ' ' + (n + 2 * pad) + ' ' + (n + 2 * pad));
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    // 屏幕低 DPI 下用 crispEdges 会使不同位置的线 round 到 1px / 2px → 粗细不一；
+    // geometricPrecision 启用亚像素抗锯齿，视觉线宽统一；打印高 DPI 下抗锯齿不可见。
+    svg.setAttribute('shape-rendering', 'geometricPrecision');
+
+    // 1) 彩色格子
+    var cells = document.createElementNS(SVG_NS, 'g');
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var rect = document.createElementNS(SVG_NS, 'rect');
+        rect.setAttribute('x', c);
+        rect.setAttribute('y', r);
+        rect.setAttribute('width', 1);
+        rect.setAttribute('height', 1);
+        rect.setAttribute('fill', COLORS[regions[r][c] % COLORS.length]);
+        cells.appendChild(rect);
+      }
+    }
+    svg.appendChild(cells);
+
+    // 2) 内部网格线（细）—— 单条 path，所有内部线宽一致
+    var d = '';
+    for (var i = 1; i < n; i++) {
+      d += 'M0 ' + i + 'H' + n + ' ';   // 水平线
+      d += 'M' + i + ' 0V' + n + ' ';   // 垂直线
+    }
+    if (d) {
+      var inner = document.createElementNS(SVG_NS, 'path');
+      inner.setAttribute('d', d);
+      inner.setAttribute('fill', 'none');
+      inner.setAttribute('stroke', '#111');
+      inner.setAttribute('stroke-width', innerStroke);
+      inner.setAttribute('stroke-linecap', 'square');
+      svg.appendChild(inner);
+    }
+
+    // 3) 外框（粗）—— 单独绘制，避免与内部线宽混叠
+    var outer = document.createElementNS(SVG_NS, 'rect');
+    outer.setAttribute('x', 0);
+    outer.setAttribute('y', 0);
+    outer.setAttribute('width', n);
+    outer.setAttribute('height', n);
+    outer.setAttribute('fill', 'none');
+    outer.setAttribute('stroke', '#111');
+    outer.setAttribute('stroke-width', outerStroke);
+    svg.appendChild(outer);
+
+    return svg;
+  }
+
+  function todayString() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function renderPages(n, pageCount) {
+    // 注意：此函数现在只是兼容入口，内部走「生成数据 → 渲染」两步。
+    // 数据保存在模块变量 currentPuzzles / currentN 里，供「下载 PDF」复用，
+    // 保证 PDF 输出与屏幕预览完全一致。
+    currentN = n;
+    currentPuzzles = buildPuzzles(n, pageCount);
+    renderFromData(currentPuzzles, n);
+    // 计算成功渲染数量（保持与旧返回值的语义兼容）
+    var totalBoards = pageCount * 6;
+    var rendered = 0;
+    for (var p = 0; p < currentPuzzles.length; p++) {
+      for (var b = 0; b < currentPuzzles[p].length; b++) {
+        if (currentPuzzles[p][b]) rendered++;
+      }
+    }
+    return rendered === totalBoards;
+  }
+
+  // ---------- 5a. 数据生成（与 DOM 渲染解耦） ----------
+  // 全局保存当前题目数据，供 PDF / 打印复用；保证「所见即所得」
+  var currentPuzzles = []; // pages[p][b] = regions（n×n 二维数组）
+  var currentN = 6;
+
+  function buildPuzzles(n, pageCount) {
+    var pages = [];
+    for (var p = 0; p < pageCount; p++) {
+      var boards = [];
+      for (var b = 0; b < 6; b++) {
+        var regions = generatePuzzle(n);
+        if (!regions) {
+          // 兜底：极端情况下给出一个仅按颜色随机分配的占位（罕见）
+          var fallback = generateQueens(n);
+          regions = fallback ? generateRegions(n, fallback) : null;
+        }
+        boards.push(regions);
+      }
+      pages.push(boards);
+    }
+    return pages;
+  }
+
+  // ---------- 5b. DOM 渲染（仅消费 buildPuzzles 的数据） ----------
+  function renderFromData(pages, n) {
+    var output = document.getElementById('output');
+    output.innerHTML = '';
+    var date = todayString();
+    var totalPages = pages.length;
+
+    for (var p = 0; p < totalPages; p++) {
+      var page = document.createElement('section');
+      page.className = 'page';
+
+      var header = document.createElement('div');
+      header.className = 'page-header';
+      var left = document.createElement('span');
+      left.textContent = date;
+      var right = document.createElement('span');
+      right.textContent = (p + 1) + ' / ' + totalPages;
+      header.appendChild(left);
+      header.appendChild(right);
+
+      var grid = document.createElement('div');
+      grid.className = 'boards-grid';
+
+      var boards = pages[p];
+      for (var b = 0; b < boards.length; b++) {
+        var regions = boards[b];
+        if (regions) {
+          grid.appendChild(renderBoard(regions, n));
+        } else {
+          // 完全失败时留一个空 board 占位（保持网格对齐）
+          var ph = document.createElement('div');
+          ph.className = 'board';
+          grid.appendChild(ph);
+        }
+      }
+
+      page.appendChild(header);
+      page.appendChild(grid);
+      output.appendChild(page);
+    }
+  }
+
+  // ---------- 5c. PDF 输出（jsPDF 矢量绘制，与屏幕同版面） ----------
+  // 取 jsPDF 全局；CDN 还没加载完就返回 null
+  function getJsPDF() {
+    return (window.jspdf && window.jspdf.jsPDF) || null;
+  }
+
+  // 文件名前缀消毒：去掉文件系统非法字符与首尾空格/连字符
+  function sanitizePrefix(prefix) {
+    if (!prefix) return '';
+    return String(prefix)
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+      .replace(/^[-\s]+|[-\s]+$/g, '');
+  }
+
+  // 文件名格式：[prefix-]queens-NxN-Pp-YYYY-MM-DD.pdf
+  function buildFilename(prefix, n, pageCount) {
+    var base = 'queens-' + n + 'x' + n + '-' + pageCount + 'p-' + todayString() + '.pdf';
+    var clean = sanitizePrefix(prefix);
+    return clean ? (clean + '-' + base) : base;
+  }
+
+  // 在 PDF 页面坐标 (x,y) 画一个 size × size mm 的棋盘（左上角 = (x,y)）
+  function drawBoardPDF(doc, regions, n, x, y, size) {
+    var cell = size / n;
+    // 1) 彩色格子
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var rgb = hexToRgb(COLORS[regions[r][c] % COLORS.length]);
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        doc.rect(x + c * cell, y + r * cell, cell, cell, 'F');
+      }
+    }
+    // 2) 内部网格线（细，与屏幕一致：外框宽的 1/2）
+    doc.setDrawColor(17, 17, 17); // #111
+    doc.setLineWidth(0.15);       // mm
+    for (var i = 1; i < n; i++) {
+      doc.line(x + i * cell, y, x + i * cell, y + size); // 垂直
+      doc.line(x, y + i * cell, x + size, y + i * cell); // 水平
+    }
+    // 3) 外框（粗）
+    doc.setLineWidth(0.30);
+    doc.rect(x, y, size, size, 'S');
+  }
+
+  function downloadPDF() {
+    var JsPDF = getJsPDF();
+    if (!JsPDF) {
+      alert('PDF 库未加载，请检查网络后刷新页面再试。');
+      return;
+    }
+    if (!currentPuzzles.length) {
+      alert('请先点击「生成题纸」。');
+      return;
+    }
+
+    var doc = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+    // 与屏幕一致的版面参数
+    var pageW = 210; // A4 宽（mm）
+    var pad = 12, colGap = 8, rowGap = 6;
+    var boardSize = 83;                                // 83 × 83 mm 正方形
+    var colWidth  = (pageW - 2 * pad - colGap) / 2;    // 89mm
+    var headerY   = pad + 5;                           // 文本基线 y
+    var boardsStartY = pad + 12;                       // 表头下方 ~24mm
+
+    var date = todayString();
+    var totalPages = currentPuzzles.length;
+    var n = currentN;
+
+    // PDF 元数据
+    doc.setProperties({
+      title:   'Queens 题纸',
+      subject: 'Queens puzzles ' + n + 'x' + n + ' x ' + (totalPages * 6),
+      creator: 'queens-print-generator',
+      author:  'queens-print-generator'
+    });
+
+    for (var p = 0; p < totalPages; p++) {
+      if (p > 0) doc.addPage();
+
+      // 表头：左日期，右页码
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(75, 85, 99); // #4b5563
+      doc.text(date, pad, headerY);
+      var pageStr = (p + 1) + ' / ' + totalPages;
+      var tw = doc.getTextWidth(pageStr);
+      doc.text(pageStr, pageW - pad - tw, headerY);
+
+      // 6 个棋盘 2×3 排布，列内水平居中
+      var boards = currentPuzzles[p];
+      for (var b = 0; b < boards.length; b++) {
+        var regions = boards[b];
+        if (!regions) continue;
+        var col = b % 2;
+        var row = Math.floor(b / 2);
+        var cellX = pad + col * (colWidth + colGap);
+        var cellY = boardsStartY + row * (boardSize + rowGap);
+        var bx = cellX + (colWidth - boardSize) / 2;
+        drawBoardPDF(doc, regions, n, bx, cellY, boardSize);
+      }
+    }
+
+    var prefix = document.getElementById('prefix').value || '';
+    doc.save(buildFilename(prefix, n, totalPages));
+  }
+
+  // ---------- 6. 设置持久化 ----------
+  // v2 新增字段 prefix（PDF 文件名前缀）；首次读取找不到 v2 则回退读 v1，平滑迁移
+  var STORAGE_KEY = 'queens-print-generator:v2';
+  var STORAGE_KEY_V1 = 'queens-print-generator:v1';
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) raw = localStorage.getItem(STORAGE_KEY_V1); // v1 → v2 兼容读取
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && data.size) {
+        var opt = document.querySelector('#size option[value="' + data.size + '"]');
+        if (opt) document.getElementById('size').value = String(data.size);
+      }
+      if (data && data.pages) {
+        document.getElementById('pages').value = String(data.pages);
+      }
+      if (data && typeof data.prefix === 'string') {
+        document.getElementById('prefix').value = data.prefix;
+      }
+    } catch (e) { /* 忽略 */ }
+  }
+  function saveSettings() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        size:   document.getElementById('size').value,
+        pages:  document.getElementById('pages').value,
+        prefix: document.getElementById('prefix').value || ''
+      }));
+    } catch (e) { /* 忽略 */ }
+  }
+
+  // ---------- 7. 事件绑定 ----------
+  function readInputs() {
+    var size = parseInt(document.getElementById('size').value, 10);
+    if (!(size >= 5 && size <= 9)) size = 6;
+    var pages = parseInt(document.getElementById('pages').value, 10);
+    if (!isFinite(pages) || pages < 1) pages = 1;
+    if (pages > 50) pages = 50;
+    document.getElementById('pages').value = String(pages);
+    return { size: size, pages: pages };
+  }
+
+  function disable(buttons, disabled) {
+    buttons.forEach(function (b) { if (b) b.disabled = disabled; });
+  }
+
+  // 根据 jsPDF 是否就绪，控制「下载 PDF」按钮可用性
+  function updatePDFButtonAvailability() {
+    var btnD = document.getElementById('btn-download');
+    if (!btnD) return;
+    if (getJsPDF()) {
+      btnD.disabled = false;
+      btnD.title = '';
+    } else {
+      btnD.disabled = true;
+      btnD.title = 'PDF 库未加载，请检查网络后刷新';
+    }
+  }
+
+  function generate() {
+    var btnG = document.getElementById('btn-generate');
+    var btnP = document.getElementById('btn-print');
+    var btnD = document.getElementById('btn-download');
+    var input = readInputs();
+    saveSettings();
+
+    btnG.textContent = '生成中…';
+    disable([btnG, btnP, btnD], true);
+
+    // 给 UI 一点时间刷新
+    setTimeout(function () {
+      try {
+        renderPages(input.size, input.pages);
+      } finally {
+        btnG.textContent = '生成题纸';
+        disable([btnG, btnP, btnD], false);
+        // 若 jsPDF 还没加载好，需重新禁用 PDF 按钮
+        updatePDFButtonAvailability();
+      }
+    }, 30);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    loadSettings();
+
+    document.getElementById('btn-generate').addEventListener('click', generate);
+
+    // 「下载 PDF」：如果还没生成过题纸先生成一次，再触发 PDF 下载
+    document.getElementById('btn-download').addEventListener('click', function () {
+      if (!currentPuzzles.length) {
+        var input = readInputs();
+        saveSettings();
+        renderPages(input.size, input.pages);
+      }
+      saveSettings(); // 保存最新前缀
+      downloadPDF();
+    });
+
+    document.getElementById('btn-print').addEventListener('click', function () {
+      var hasPages = !!document.querySelector('.page');
+      if (!hasPages) {
+        // 还没生成 → 先生成再打印
+        var input = readInputs();
+        saveSettings();
+        renderPages(input.size, input.pages);
+        // 等渲染落地后再打印
+        setTimeout(function () { window.print(); }, 80);
+      } else {
+        window.print();
+      }
+    });
+
+    // 设置变更时自动持久化
+    // 棋盘大小切换：直接重新生成（生成函数内部会保存设置）；
+    // 页数 / 前缀仅持久化，避免在连续输入数字或文字时反复重算。
+    document.getElementById('size').addEventListener('change', generate);
+    document.getElementById('pages').addEventListener('change', saveSettings);
+    document.getElementById('prefix').addEventListener('input',  saveSettings);
+
+    // jsPDF 是 defer 异步加载，加载完成 / 失败后再更新「下载 PDF」按钮状态
+    updatePDFButtonAvailability();
+    if (!getJsPDF()) {
+      var jsPdfScript = document.querySelector('script[src*="jspdf"]');
+      if (jsPdfScript) {
+        jsPdfScript.addEventListener('load',  updatePDFButtonAvailability);
+        jsPdfScript.addEventListener('error', updatePDFButtonAvailability);
+      }
+      // 兜底：5 秒内每 0.5 秒轮询一次
+      var tries = 0;
+      var timer = setInterval(function () {
+        tries++;
+        if (getJsPDF() || tries > 10) {
+          clearInterval(timer);
+          updatePDFButtonAvailability();
+        }
+      }, 500);
+    }
+
+    // 进入页面默认生成一次
+    generate();
+  });
+})();
+</script>
+</body>
+</html>
