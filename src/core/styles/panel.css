@@ -129,6 +129,28 @@ body {
   box-shadow: none;
 }
 
+.status-message {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.status-message[hidden] {
+  display: none;
+}
+.status-message.warning {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+.status-message.error {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 /* --- 移动端 --- */
 @media (max-width: 480px) {
   .panel h1 {

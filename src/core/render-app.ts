@@ -32,6 +32,9 @@ const PDF_LAYOUT = {
 } as const;
 
 const PREFIX_CONTROL_ID = 'prefix';
+const STATUS_ID = 'app-status';
+
+type StatusKind = 'error' | 'warning';
 
 export function createApp<TConfig, TBoardData>(game: Game<TConfig, TBoardData>): void {
   document.title = game.title;
@@ -55,6 +58,7 @@ export function createApp<TConfig, TBoardData>(game: Game<TConfig, TBoardData>):
 
   let currentBoards: Array<Array<TBoardData | null>> = [];
   let currentCfg: TConfig | null = null;
+  let generationPromise: Promise<void> | null = null;
 
   function readRawValues(): Record<string, string> {
     const raw: Record<string, string> = {};
@@ -77,39 +81,95 @@ export function createApp<TConfig, TBoardData>(game: Game<TConfig, TBoardData>):
     return el;
   }
 
-  function generate(): void {
+  async function waitForPaint(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => resolve());
+      } else {
+        setTimeout(resolve, 0);
+      }
+    });
+  }
+
+  function setStatus(kind: StatusKind, message: string): void {
+    const el = document.getElementById(STATUS_ID);
+    if (!el) return;
+    el.textContent = message;
+    el.className = `status-message ${kind}`;
+    el.hidden = false;
+  }
+
+  function clearStatus(): void {
+    const el = document.getElementById(STATUS_ID);
+    if (!el) return;
+    el.textContent = '';
+    el.className = 'status-message';
+    el.hidden = true;
+  }
+
+  function buildWarningMessage(pages: Array<Array<TBoardData | null>>): string | null {
+    let emptyCount = 0;
+    for (const page of pages) {
+      for (const board of page) {
+        if (board === null) emptyCount++;
+      }
+    }
+    return emptyCount > 0 ? `有 ${emptyCount} 道题生成失败，已保留空白占位。` : null;
+  }
+
+  function errorMessage(error: unknown): string {
+    return error instanceof Error && error.message
+      ? `生成失败：${error.message}`
+      : '生成失败，请调整参数或重试。';
+  }
+
+  async function generate(): Promise<void> {
+    if (generationPromise) return generationPromise;
+
     const btnG = btn('btn-generate');
     const btnD = btn('btn-download');
     const btnP = btn('btn-print');
     persist();
 
     const cfg = game.readConfig(readRawValues());
-    currentCfg = cfg;
 
     btnG.textContent = '生成中…';
     btnG.disabled = true;
     btnD.disabled = true;
     btnP.disabled = true;
+    clearStatus();
 
-    // 给 UI 一点时间刷新
-    setTimeout(() => {
+    generationPromise = (async () => {
+      await waitForPaint();
       try {
-        currentBoards = game.build(cfg);
-        renderOutput(game, currentBoards, cfg);
+        const nextBoards = game.build(cfg);
+        renderOutput(game, nextBoards, cfg);
+        currentBoards = nextBoards;
+        currentCfg = cfg;
+
+        const warning = buildWarningMessage(nextBoards);
+        if (warning) {
+          setStatus('warning', warning);
+        } else {
+          clearStatus();
+        }
+      } catch (error) {
+        setStatus('error', errorMessage(error));
       } finally {
         btnG.textContent = '生成题纸';
         btnG.disabled = false;
         btnP.disabled = false;
+        generationPromise = null;
         updatePDFButton();
       }
-    }, 30);
+    })();
+
+    return generationPromise;
   }
 
   async function downloadPDF(): Promise<void> {
     if (currentBoards.length === 0 || currentCfg === null) {
-      generate();
-      // 给生成留一点时间（与 print 行为一致）
-      await new Promise((r) => setTimeout(r, 60));
+      await generate();
     }
     const cfg = currentCfg;
     if (!cfg || currentBoards.length === 0) return;
@@ -158,24 +218,30 @@ export function createApp<TConfig, TBoardData>(game: Game<TConfig, TBoardData>):
   }
 
   // 事件绑定
-  btn('btn-generate').addEventListener('click', generate);
+  btn('btn-generate').addEventListener('click', () => {
+    void generate();
+  });
   btn('btn-download').addEventListener('click', () => {
     void downloadPDF();
   });
   btn('btn-print').addEventListener('click', () => {
-    if (currentBoards.length === 0) {
-      generate();
-      setTimeout(() => window.print(), 80);
-    } else {
-      window.print();
-    }
+    void (async () => {
+      if (currentBoards.length === 0) {
+        await generate();
+      }
+      if (currentBoards.length > 0) {
+        window.print();
+      }
+    })();
   });
 
   for (const c of game.controls) {
     const el = controlEls.get(c.id);
     if (!el) continue;
     if (c.triggersRegenerate) {
-      el.addEventListener('change', generate);
+      el.addEventListener('change', () => {
+        void generate();
+      });
     } else {
       const evt = c.kind === 'text' ? 'input' : 'change';
       el.addEventListener(evt, persist);
@@ -186,10 +252,14 @@ export function createApp<TConfig, TBoardData>(game: Game<TConfig, TBoardData>):
   prefetchJsPDF();
   updatePDFButton();
   // 默认进入页面就生成一次
-  generate();
+  void generate();
 
   function updatePDFButton(): void {
     const btnD = btn('btn-download');
+    if (generationPromise) {
+      btnD.disabled = true;
+      return;
+    }
     if (isJsPDFReady()) {
       btnD.disabled = false;
       btnD.title = '';
@@ -241,6 +311,14 @@ function buildLayout<TConfig, TBoardData>(game: Game<TConfig, TBoardData>): HTML
   actions.appendChild(makeButton('btn-download', 'btn-tertiary', '下载 PDF'));
   actions.appendChild(makeButton('btn-print', 'btn-secondary', '打印'));
   panel.appendChild(actions);
+
+  const status = document.createElement('div');
+  status.id = STATUS_ID;
+  status.className = 'status-message';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.hidden = true;
+  panel.appendChild(status);
 
   container.appendChild(panel);
 

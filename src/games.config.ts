@@ -5,7 +5,7 @@
  * 这样首页打包时不会把游戏的算法 / 渲染代码也拉进来，保持入口最小。
  */
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
+import { createSvg, createSvgElement, createSvgRect } from './core/svg.ts';
 
 export interface GameEntry {
   /** kebab-case 唯一 id，与目录名 / Pages 子路径一致。 */
@@ -16,28 +16,6 @@ export interface GameEntry {
   readonly route: string;
   /** 卡片缩略图（独立 SVG，调用即新建）。 */
   makeThumbnail(): SVGSVGElement;
-}
-
-function svg(viewBox: string): SVGSVGElement {
-  const el = document.createElementNS(SVG_NS, 'svg');
-  el.setAttribute('viewBox', viewBox);
-  el.setAttribute('xmlns', SVG_NS);
-  el.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  return el;
-}
-
-function rect(x: number, y: number, w: number, h: number, fill: string, rx = 0): SVGRectElement {
-  const r = document.createElementNS(SVG_NS, 'rect');
-  r.setAttribute('x', String(x));
-  r.setAttribute('y', String(y));
-  r.setAttribute('width', String(w));
-  r.setAttribute('height', String(h));
-  r.setAttribute('fill', fill);
-  if (rx > 0) {
-    r.setAttribute('rx', String(rx));
-    r.setAttribute('ry', String(rx));
-  }
-  return r;
 }
 
 export const games: readonly GameEntry[] = [
@@ -56,15 +34,15 @@ export const games: readonly GameEntry[] = [
         [4, 4, 5, 2],
         [4, 5, 6, 6],
       ];
-      const root = svg('0 0 4 4');
+      const root = createSvg('0 0 4 4');
       for (let r = 0; r < 4; r++) {
         for (let c = 0; c < 4; c++) {
           const id = layout[r]![c]!;
-          root.appendChild(rect(c, r, 1, 1, palette[id] ?? '#000'));
+          root.appendChild(createSvgRect(c, r, 1, 1, palette[id] ?? '#000'));
         }
       }
       // 浅黑色细网格线
-      const grid = document.createElementNS(SVG_NS, 'path');
+      const grid = createSvgElement('path');
       let d = '';
       for (let i = 1; i < 4; i++) {
         d += `M0 ${i}H4 M${i} 0V4 `;
@@ -76,7 +54,7 @@ export const games: readonly GameEntry[] = [
       grid.setAttribute('stroke-linecap', 'square');
       root.appendChild(grid);
       // 外框
-      const border = rect(0, 0, 4, 4, 'none');
+      const border = createSvgRect(0, 0, 4, 4, 'none');
       border.setAttribute('stroke', '#111');
       border.setAttribute('stroke-width', '0.08');
       root.appendChild(border);
@@ -103,16 +81,16 @@ export const games: readonly GameEntry[] = [
         [2, 2, false],
         [3, 2, false],
       ];
-      const root = svg('-0.1 -0.1 4.2 4.2');
+      const root = createSvg('-0.1 -0.1 4.2 4.2');
       const gap = 0.1;
       const inner = 1 - gap;
       const rx = inner * 0.18;
       for (const [r, c, isStart] of cells) {
         root.appendChild(
-          rect(c + gap / 2, r + gap / 2, inner, inner, isStart ? START : ACTIVE, rx),
+          createSvgRect(c + gap / 2, r + gap / 2, inner, inner, isStart ? START : ACTIVE, rx),
         );
       }
-      const border = rect(0, 0, 4, 4, 'none', 0.2);
+      const border = createSvgRect(0, 0, 4, 4, 'none', 0.2);
       border.setAttribute('stroke', BORDER);
       border.setAttribute('stroke-width', '0.07');
       root.appendChild(border);
