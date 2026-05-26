@@ -19,11 +19,12 @@ export function todayString(d: Date = new Date()): string {
  */
 export function sanitizePrefix(prefix: string | null | undefined): string {
   if (!prefix) return '';
-  return String(prefix)
-    // 控制符与文件系统保留字符
-    // eslint-disable-next-line no-control-regex
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
-    .replace(/^[-\s]+|[-\s]+$/g, '');
+  return (
+    String(prefix)
+      // 控制符与文件系统保留字符
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '')
+      .replace(/^[-\s]+|[-\s]+$/g, '')
+  );
 }
 
 export interface RGB {

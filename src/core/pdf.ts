@@ -60,7 +60,14 @@ export function setStroke(doc: JsPDFType, rgb: RGB): void {
  */
 export function drawPageHeader(
   doc: JsPDFType,
-  opts: { pageW?: number; pad?: number; headerY?: number; date: string; pageIndex: number; totalPages: number },
+  opts: {
+    pageW?: number;
+    pad?: number;
+    headerY?: number;
+    date: string;
+    pageIndex: number;
+    totalPages: number;
+  },
 ): void {
   const pageW = opts.pageW ?? 210;
   const pad = opts.pad ?? 12;

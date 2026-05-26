@@ -55,9 +55,9 @@ describe('hexToRgb', () => {
 
 describe('buildFilename', () => {
   it('builds default name without prefix', () => {
-    expect(
-      buildFilename({ kind: 'queens', size: '6x6', pages: 3, date: '2025-05-26' }),
-    ).toBe('queens-6x6-3p-2025-05-26.pdf');
+    expect(buildFilename({ kind: 'queens', size: '6x6', pages: 3, date: '2025-05-26' })).toBe(
+      'queens-6x6-3p-2025-05-26.pdf',
+    );
   });
 
   it('prepends sanitized prefix when given', () => {

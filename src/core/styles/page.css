@@ -27,7 +27,7 @@
   aspect-ratio: 210 / 297;
   padding: 5.71%; /* ≈ 12mm / 210mm */
   border-radius: 4px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, .08);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   container-type: inline-size;
@@ -66,6 +66,10 @@
 }
 
 @media (max-width: 480px) {
-  .page { padding: 5.71%; }
-  .boards-grid { gap: 3cqw 3.6cqw; }
+  .page {
+    padding: 5.71%;
+  }
+  .boards-grid {
+    gap: 3cqw 3.6cqw;
+  }
 }

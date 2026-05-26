@@ -9,7 +9,8 @@
 }
 
 @media print {
-  html, body {
+  html,
+  body {
     background: #fff;
     margin: 0;
     padding: 0;
@@ -18,9 +19,13 @@
     padding: 0;
     max-width: none;
   }
-  .no-print { display: none !important; }
+  .no-print {
+    display: none !important;
+  }
 
-  #output { gap: 0; }
+  #output {
+    gap: 0;
+  }
 
   .page {
     width: 210mm;

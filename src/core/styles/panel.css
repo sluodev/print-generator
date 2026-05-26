@@ -3,16 +3,20 @@
  * 与 page.css / print.css 同属外壳样式，所有游戏共用。
  * ============================================================ */
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-               'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    'Helvetica Neue', Arial, sans-serif;
   background: #f3f4f6;
   color: #111827;
   -webkit-font-smoothing: antialiased;
@@ -26,7 +30,9 @@ body {
 }
 
 /* --- 顶部面板 --- */
-.panel { margin-bottom: 16px; }
+.panel {
+  margin-bottom: 16px;
+}
 .panel h1 {
   margin: 0 0 14px;
   font-size: 18px;
@@ -88,16 +94,33 @@ body {
   font-weight: 600;
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
-  transition: background-color .15s ease, transform .05s ease, box-shadow .15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition:
+    background-color 0.15s ease,
+    transform 0.05s ease,
+    box-shadow 0.15s ease;
 }
-.actions button:active { transform: translateY(1px); }
-.btn-primary   { background: #0ea5e9; }   /* 天蓝 - 生成 */
-.btn-primary:hover { background: #0284c7; }
-.btn-tertiary  { background: #10b981; }   /* 翠绿 - 下载 PDF */
-.btn-tertiary:hover { background: #059669; }
-.btn-secondary { background: #ff7849; }   /* 珊瑚橙 - 打印 */
-.btn-secondary:hover { background: #ea5a30; }
+.actions button:active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  background: #0ea5e9;
+} /* 天蓝 - 生成 */
+.btn-primary:hover {
+  background: #0284c7;
+}
+.btn-tertiary {
+  background: #10b981;
+} /* 翠绿 - 下载 PDF */
+.btn-tertiary:hover {
+  background: #059669;
+}
+.btn-secondary {
+  background: #ff7849;
+} /* 珊瑚橙 - 打印 */
+.btn-secondary:hover {
+  background: #ea5a30;
+}
 .btn-primary:disabled,
 .btn-secondary:disabled,
 .btn-tertiary:disabled {
@@ -108,11 +131,23 @@ body {
 
 /* --- 移动端 --- */
 @media (max-width: 480px) {
-  .panel h1 { font-size: 17px; }
+  .panel h1 {
+    font-size: 17px;
+  }
   .controls,
-  .actions { gap: 10px; }
+  .actions {
+    gap: 10px;
+  }
   .controls select,
-  .controls input { font-size: 16px; padding: 11px 12px; }
-  .actions { grid-template-columns: 1fr; }
-  .actions button { padding: 13px; font-size: 15px; }
+  .controls input {
+    font-size: 16px;
+    padding: 11px 12px;
+  }
+  .actions {
+    grid-template-columns: 1fr;
+  }
+  .actions button {
+    padding: 13px;
+    font-size: 15px;
+  }
 }
