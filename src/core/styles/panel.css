@@ -1,0 +1,118 @@
+/* ============================================================
+ * panel.css — 控制面板 / 控件 / 按钮 / 响应式
+ * 与 page.css / print.css 同属外壳样式，所有游戏共用。
+ * ============================================================ */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+               'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+.container {
+  max-width: 210mm; /* 与 A4 同宽，panel 与 output 对齐 */
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* --- 顶部面板 --- */
+.panel { margin-bottom: 16px; }
+.panel h1 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+.controls label.full-row {
+  grid-column: 1 / -1;
+}
+.controls select,
+.controls input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 16px;
+  color: #111827;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.controls select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%236b7280' d='M6 8 0 0h12z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+.controls select:focus,
+.controls input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+  border-color: #2563eb;
+}
+
+/* --- 按钮区：桌面 3 列横排，移动端纵向堆叠 --- */
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.actions button {
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+  transition: background-color .15s ease, transform .05s ease, box-shadow .15s ease;
+}
+.actions button:active { transform: translateY(1px); }
+.btn-primary   { background: #0ea5e9; }   /* 天蓝 - 生成 */
+.btn-primary:hover { background: #0284c7; }
+.btn-tertiary  { background: #10b981; }   /* 翠绿 - 下载 PDF */
+.btn-tertiary:hover { background: #059669; }
+.btn-secondary { background: #ff7849; }   /* 珊瑚橙 - 打印 */
+.btn-secondary:hover { background: #ea5a30; }
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-tertiary:disabled {
+  background: #c7c9d1;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* --- 移动端 --- */
+@media (max-width: 480px) {
+  .panel h1 { font-size: 17px; }
+  .controls,
+  .actions { gap: 10px; }
+  .controls select,
+  .controls input { font-size: 16px; padding: 11px 12px; }
+  .actions { grid-template-columns: 1fr; }
+  .actions button { padding: 13px; font-size: 15px; }
+}

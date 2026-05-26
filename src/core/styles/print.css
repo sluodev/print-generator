@@ -1,0 +1,48 @@
+/* ============================================================
+ * print.css — 打印专用规则。@page 决定纸张尺寸 / 边距，
+ * @media print 覆盖屏幕样式，让 dist 直接打印就是题纸效果。
+ * ============================================================ */
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html, body {
+    background: #fff;
+    margin: 0;
+    padding: 0;
+  }
+  .container {
+    padding: 0;
+    max-width: none;
+  }
+  .no-print { display: none !important; }
+
+  #output { gap: 0; }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    max-width: none;
+    aspect-ratio: auto;
+    padding: 12mm;
+    margin: 0;
+    box-shadow: none;
+    border-radius: 0;
+    page-break-after: always;
+    break-after: page;
+  }
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .page-header {
+    font-size: 10.5pt;
+    margin-bottom: 6mm;
+  }
+  .boards-grid {
+    gap: 6mm 8mm;
+  }
+}

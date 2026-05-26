@@ -1,0 +1,5 @@
+/* 整合入口：游戏的 entry.ts 通过 createApp 间接加载，无需手动 import 这一份。 */
+
+@import './panel.css';
+@import './page.css';
+@import './print.css';

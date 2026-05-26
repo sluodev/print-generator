@@ -1,0 +1,71 @@
+/* ============================================================
+ * page.css — 输出区域 / A4 页面预览 / 题板网格
+ * ============================================================ */
+
+#output {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.empty-hint {
+  padding: 32px 16px;
+  color: #6b7280;
+  text-align: center;
+  font-size: 14px;
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+}
+
+/* --- A4 页面 --- */
+.page {
+  background: #fff;
+  width: 100%;
+  max-width: 210mm;
+  aspect-ratio: 210 / 297;
+  padding: 5.71%; /* ≈ 12mm / 210mm */
+  border-radius: 4px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, .08);
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+  color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: #4b5563;
+  margin-bottom: 2.5%;
+  font-size: 11pt;
+  /* 屏幕用 cqw 自适应；打印环境会被 print.css 覆盖为 pt */
+  font-size: 1.85cqw;
+}
+
+.boards-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3.2cqw 4cqw; /* 行 ≈ 6.7mm，列 ≈ 8.4mm */
+  align-items: center;
+  justify-items: center;
+}
+
+.board {
+  /* SVG 题板：填满 grid 单元格，preserveAspectRatio 内部按方形居中 */
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 480px) {
+  .page { padding: 5.71%; }
+  .boards-grid { gap: 3cqw 3.6cqw; }
+}

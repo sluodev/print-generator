@@ -3,3 +3,17 @@
 .DS_Store
 .local
 *.local
+
+# 构建产物
+dist
+.vite
+
+# 依赖
+node_modules
+
+# 测试覆盖率
+coverage
+
+# 系统 / 日志
+*.log
+.npmrc.local
