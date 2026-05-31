@@ -9,7 +9,7 @@ export const queensGame: Game<QueensConfig, QueensBoard> = {
   id: 'queens',
   title: 'Queens 题纸生成器',
   description: 'N×N 棋盘上每行/列各放一个皇后，且每个色块也放且仅放 1 个；唯一解题面随机生成。',
-  storageKey: 'queens-print-generator:v3',
+  storageKey: 'queens-print-generator:v4',
   filenameKind: 'queens',
 
   controls: [
@@ -32,7 +32,7 @@ export const queensGame: Game<QueensConfig, QueensBoard> = {
       id: 'pages',
       label: '页数',
       min: 1,
-      max: 50,
+      max: 6,
       step: 1,
       default: 3,
     },
@@ -50,7 +50,7 @@ export const queensGame: Game<QueensConfig, QueensBoard> = {
   readConfig(raw): QueensConfig {
     return {
       size: clampInt(raw.size, 5, 9, 6),
-      pages: clampInt(raw.pages, 1, 50, 3),
+      pages: clampInt(raw.pages, 1, 6, 3),
       prefix: raw.prefix ?? '',
     };
   },

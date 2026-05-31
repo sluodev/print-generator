@@ -89,7 +89,6 @@ interface Game<TConfig, TBoardData> extends GameMeta {
 
 ## 已知限制 / 设计决策
 
-- **Queens n=8/9 唯一解**：原算法（"按皇后位置 BFS 涂色"）在 n=8/9 上几乎不收敛，由 `buildPuzzles` 的 fallback 路径降级为非唯一解。这是原始 HTML 既有行为，迁移忠实保留。如需提升，可考虑在 `generateRegions` 中引入更随机的 partition 策略（带反抑制采样），单独优化。
 - **持久化**：每个游戏一个 localStorage key（带版本号），存的是**控件原始字符串值**；`readConfig` 负责解析。换接口时无需写迁移代码——直接 bump 版本号即可让旧值失效。
 - **CI 在 Pages 路径下构建**：CI 用 `PAGES_BASE=/print-generator/` 触发 build，本地默认 `/`。改 base 路径前后要同时验证两种环境下的资源加载。
 

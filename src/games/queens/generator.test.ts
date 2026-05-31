@@ -8,6 +8,8 @@ import {
   generatePuzzle,
   generateQueens,
   generateRegions,
+  isConnectedRegions,
+  solveWithLogic,
 } from './generator.ts';
 
 describe('generateQueens', () => {
@@ -61,6 +63,15 @@ describe('generateRegions', () => {
       expect(regions[r]![qc]).toBe(r);
     }
   });
+
+  it('keeps every color region connected', () => {
+    for (let n = 5; n <= 9; n++) {
+      const rand = mulberry32(3000 + n);
+      const queens = generateQueens(n, rand)!;
+      const regions = generateRegions(n, queens, rand);
+      expect(isConnectedRegions(n, regions), `n=${n}`).toBe(true);
+    }
+  });
 });
 
 describe('countSolutions', () => {
@@ -72,17 +83,13 @@ describe('countSolutions', () => {
 });
 
 describe('generatePuzzle', () => {
-  // 算法在小棋盘 (5~7) 上有可观的唯一解命中率；n=8 / n=9 的命中率接近 0
-  // （原始 HTML 也是同样限制，由 buildPuzzles 的 fallback 路径兜底）。
-  // 5: ~100%，6: ~100%，7: ~44%；n=7 用多次重试确保测试稳定。
-  it('produces unique-solution puzzles for n = 5..7', () => {
-    for (let n = 5; n <= 7; n++) {
-      let regions: ReturnType<typeof generatePuzzle> = null;
-      for (let attempt = 0; attempt < 8 && !regions; attempt++) {
-        regions = generatePuzzle(n);
-      }
+  it('produces connected, unique, logic-solvable puzzles for n = 5..9', () => {
+    for (let n = 5; n <= 9; n++) {
+      const regions = generatePuzzle(n, mulberry32(7000 + n));
       expect(regions, `n=${n}`).not.toBeNull();
+      expect(isConnectedRegions(n, regions!), `n=${n}`).toBe(true);
       expect(countSolutions(n, regions!, 2)).toBe(1);
+      expect(solveWithLogic(n, regions!).solved, `n=${n}`).toBe(true);
     }
   });
 });
@@ -100,16 +107,16 @@ describe('buildPuzzles', () => {
     }
   });
 
-  it('falls back to non-unique regions at n=8/9 (known limitation in original algorithm)', () => {
-    // 主断言：即便 generatePuzzle 在 n=8/9 几乎总是返回 null，buildPuzzles 也通过 fallback
-    // 给出可视化的题面，所有 board 不应为 null。
+  it('does not fall back to non-unique boards at n=8/9', () => {
     for (const n of [8, 9]) {
-      const pages = buildPuzzles(n, 1);
+      const pages = buildPuzzles(n, 1, mulberry32(9000 + n));
       expect(pages.length).toBe(1);
       const page = pages[0]!;
       expect(page.length).toBe(6);
       for (const board of page) {
         expect(board).not.toBeNull();
+        expect(countSolutions(n, board!, 2)).toBe(1);
+        expect(solveWithLogic(n, board!).solved).toBe(true);
       }
     }
   });
