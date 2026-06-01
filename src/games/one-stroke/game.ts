@@ -4,7 +4,6 @@ import { buildPuzzles } from './generator.ts';
 import { drawOneStrokePDF } from './pdf.ts';
 import { renderOneStrokeSVG } from './render.ts';
 import {
-  DIFFICULTY_RATIO,
   type Difficulty,
   type MarkMode,
   type OneStrokeBoard,
@@ -37,9 +36,9 @@ export const oneStrokeGame: Game<OneStrokeConfig, OneStrokeBoard> = {
       id: 'difficulty',
       label: '难度',
       options: [
-        { value: 'easy', label: '简单（约 50% 格）' },
-        { value: 'medium', label: '中等（约 70% 格）' },
-        { value: 'hard', label: '困难（约 90% 格）' },
+        { value: 'easy', label: '简单（基础分支）' },
+        { value: 'medium', label: '中等（深层分支）' },
+        { value: 'hard', label: '困难（高干扰少解）' },
       ],
       default: 'medium',
       triggersRegenerate: true,
@@ -87,7 +86,7 @@ export const oneStrokeGame: Game<OneStrokeConfig, OneStrokeBoard> = {
   },
 
   build(cfg) {
-    return buildPuzzles(cfg.size, DIFFICULTY_RATIO[cfg.difficulty], cfg.pages);
+    return buildPuzzles(cfg.size, cfg.difficulty, cfg.markMode, cfg.pages);
   },
 
   renderSVG(board, cfg) {
